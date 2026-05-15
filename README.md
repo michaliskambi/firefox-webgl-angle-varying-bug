@@ -1,10 +1,10 @@
-# Demo of ANGLE in Firefox 150.0.3 bug: when declared `varying` after `main` (which is valid in this case, thanks to forward declaration of routine using this varying)
+# Firefox 150.0.3 / ANGLE bug: shader fails to compile when a `varying`/`out` is declared after `main` (which is valid and used in this case, thanks to forward declaration of routine using this varying)
 
 ## Running
 
 Run the server, like `python3 -m http.server 8000`, to enable `fetch` from JS.
 
-Then open `http://localhost:8000` in Firefox. You should see shader compile error in console, and the page will be blank. (Tested with Firefox 150.0.3 on Linux/x86-64.)
+Then open `http://localhost:8000` in Firefox. You should see shader compile error in console, and the page will be blank. (Tested with Firefox 150.0.3 on Linux/x86-64, on NVidia GPU.)
 
 In Vivaldi (which uses Chromium), the shader compiles and you see a colored triangle. Vivaldi also uses ANGLE and processes the shader under the hood -- but it seems a different (newer?) version of ANGLE has this fixed.
 
@@ -20,7 +20,7 @@ So it's valid, code is used, and everything is _declared_ before use.
 
 Still, the shader compilation in Firefox 150.0.3 fails. ANGLE processes the shader in a way that assumes that all varyings must be declared before `main`. See below for dump proving it.
 
-Reason for ANGLE processing is https://bugzilla.mozilla.org/show_bug.cgi?id=1910306 ? They want to preinitialize all variables, to avoid undefined behavior when accessing uninitialized variables. Makes sense, but the code assumes all varyings are declared before `main`, which is not required by GLSL spec, as far as I know.
+Reason for ANGLE processing is https://bugzilla.mozilla.org/show_bug.cgi?id=1910306 . They want to preinitialize all variables, to avoid undefined behavior when accessing uninitialized variables. Makes sense, but the code assumes all varyings are declared before `main`, which is not required by GLSL spec, as far as I know.
 
 ## Shader dump from Firefox 150.0.3 - showing the bug
 
@@ -118,12 +118,16 @@ vertex shader info log
 (empty info log)
 ```
 
+## ANGLE versions
+
+ANGLE version in Vivaldi seems newer:
+- emits `#version 450`
+- emits easier to read variable names (like `_ucastle_ClipDistance` instead of `webgl_c326dd01ea9f6428`)
+- moves (hoists) the declaration of `out float _ucastle_ClipDistance` before `main`, which is valid and fixes the bug
+
 ## Notes
 
 The HTML and JS inside `index.html` are mostly Claude-generated, throwaway test code.
 
-Notes from Claude:
+The `shader.vs` comes from real _Castle Game Engine_ generated code.
 
-- If `WEBGL_debug_shaders` shows as unavailable in Firefox, set `webgl.enable-privileged-extensions = true` in `about:config` and reload — it's a "privileged" extension and is gated off by default.
-
-    Michalis: I didn't need this advise, maybe because I used this on `localhost`.

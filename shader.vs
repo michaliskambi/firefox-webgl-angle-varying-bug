@@ -99,7 +99,7 @@ void main(void)
 }
 
 // In FireFox, this fails with
-// "Shader compile error: 0(11) : error C1503: undefined variable "webgl_ec8f5b178713d6bf" "
+// 0(12) : error C1503: undefined variable "webgl_c326dd01ea9f6428"
 varying float castle_ClipDistance;
 
 uniform vec4 castle_ClipPlane0;
