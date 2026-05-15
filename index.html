@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>WebGL 2 Triangle</title>
+  <style>
+    html, body { margin: 0; background: #111; color: #ddd; font-family: monospace; }
+    #gl-canvas { display: block; width: 100vw; height: 50vh; }
+    #debug {
+      padding: 8px 12px;
+      font-size: 12px;
+      white-space: pre-wrap;
+      overflow-x: auto;
+      border-top: 1px solid #333;
+    }
+    #debug h2 { color: #fa8; margin: 12px 0 4px; font-size: 13px; }
+    #debug .err { color: #f66; }
+    #debug pre { margin: 0; }
+  </style>
+</head>
+<body>
+  <canvas id="gl-canvas"></canvas>
+  <div id="debug"></div>
+  <script>
+    const debugEl = document.getElementById('debug');
+    function log(title, body, isErr = false) {
+      const h = document.createElement('h2');
+      h.textContent = title;
+      const pre = document.createElement('pre');
+      pre.textContent = body;
+      if (isErr) pre.className = 'err';
+      debugEl.appendChild(h);
+      debugEl.appendChild(pre);
+      console.log('=== ' + title + ' ===\n' + body);
+    }
+
+    async function main() {
+      const canvas = document.getElementById('gl-canvas');
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+
+      const gl = canvas.getContext('webgl2');
+      if (!gl) {
+        alert('WebGL 2 is not supported in this browser.');
+        return;
+      }
+
+      const dbgExt = gl.getExtension('WEBGL_debug_shaders');
+      log('WEBGL_debug_shaders extension',
+          dbgExt ? 'AVAILABLE — translated source will be dumped below.'
+                 : 'NOT AVAILABLE — Firefox usually exposes this; try about:config -> webgl.enable-privileged-extensions = true, or run with --enable-privileged-webgl-extensions.',
+          !dbgExt);
+
+      const [vsSource, fsSource] = await Promise.all([
+        fetch('shader.vs').then(r => r.text()),
+        fetch('shader.fs').then(r => r.text())
+      ]);
+
+      function compileShader(type, source, label) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+
+        const ok = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
+        const infoLog = gl.getShaderInfoLog(shader) || '(empty info log)';
+
+        if (dbgExt) {
+          let translated;
+          try {
+            translated = dbgExt.getTranslatedShaderSource(shader);
+          } catch (e) {
+            translated = '(getTranslatedShaderSource threw: ' + e + ')';
+          }
+          if (!translated) translated = '(empty — ANGLE may have refused to emit due to earlier error)';
+          log('ANGLE translated source — ' + label, translated);
+        }
+
+        log(label + ' compile status', ok ? 'OK' : 'FAILED', !ok);
+        log(label + ' info log', infoLog, !ok);
+
+        if (!ok) throw new Error(label + ' compile failed: ' + infoLog);
+        return shader;
+      }
+
+      log('Original vertex shader source', vsSource);
+      log('Original fragment shader source', fsSource);
+
+      const vertexShader   = compileShader(gl.VERTEX_SHADER,   vsSource, 'vertex shader');
+      const fragmentShader = compileShader(gl.FRAGMENT_SHADER, fsSource, 'fragment shader');
+
+      const program = gl.createProgram();
+      gl.attachShader(program, vertexShader);
+      gl.attachShader(program, fragmentShader);
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        const linkLog = gl.getProgramInfoLog(program);
+        log('Program link', 'FAILED\n' + linkLog, true);
+        throw new Error('Program link failed');
+      }
+      log('Program link', 'OK');
+
+      gl.useProgram(program);
+
+      const vertices = new Float32Array([
+         0.0,  0.7, 0.0,
+        -0.7, -0.7, 0.0,
+         0.7, -0.7, 0.0
+      ]);
+
+      const vbo = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+      gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+
+      const vertexLoc = gl.getAttribLocation(program, 'castle_Vertex');
+      gl.enableVertexAttribArray(vertexLoc);
+      gl.vertexAttribPointer(vertexLoc, 3, gl.FLOAT, false, 0, 0);
+
+      const identity = new Float32Array([
+        1, 0, 0, 0,
+        0, 1, 0, 0,
+        0, 0, 1, 0,
+        0, 0, 0, 1
+      ]);
+      gl.uniformMatrix4fv(gl.getUniformLocation(program, 'castle_ModelViewMatrix'),  false, identity);
+      gl.uniformMatrix4fv(gl.getUniformLocation(program, 'castle_ProjectionMatrix'), false, identity);
+
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.clearColor(0.07, 0.07, 0.1, 1.0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
+
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    }
+
+    main().catch(e => log('Fatal error', String(e), true));
+  </script>
+</body>
+</html>
