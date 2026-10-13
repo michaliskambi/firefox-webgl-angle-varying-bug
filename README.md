@@ -1,5 +1,25 @@
 # Firefox 150.0.3 / ANGLE bug: shader fails to compile when a `varying`/`out` is declared after `main` (which is valid and used in this case, thanks to forward declaration of routine using this varying)
 
+## This is solved in Firefox >= 154
+
+**This repository is not very interesting anymore -- the bug is fixed in recent Firefox versions.**
+
+Tested on Linux/x86_64 with:
+- Firefox 154.0 (from packages, package version `154.0-1`, from PikaOS repository, based on Debian unstable)
+- Firefox 160.0a1 (latest nightly from https://www.firefox.com/en-US/channel/desktop/ )
+
+Tested on Windows/x86_64 with:
+- Firefox 157.0.1 (official Firefox downloads)
+- Firefox 160.0a1 (as above: latest nightly from https://www.firefox.com/en-US/channel/desktop/ )
+
+In all 4 above cases,
+- the testcase https://github.com/michaliskambi/firefox-webgl-angle-varying-bug is fixed.
+- also Castle Game Engine examples, build with FPC to WebAssembly, with the workaround _disabled_ (`WebGLMoveMainBlockToEnd` call commented out in https://github.com/castle-engine/castle-engine/blob/0c21dcbc42ba9d9d2b605f518cc962068bcf2030/src/base_rendering/castleglshaders.pas#L1835 ) -> works fine (fog shader, that previously didn't compile, now works OK).
+
+Judging from the version numbers (the fix was _not_ in nightly 153.0b13 from 2026-07-16, but is _in_ 154.0) -> the fix landed at some point during 153.x development, before 154.0.
+
+Screenshots showing it is OK in [fixed_screenshots_new_firefox](fixed_screenshots_new_firefox).
+
 ## Running
 
 Run the server, like `python3 -m http.server 8000`, to enable `fetch` from JS.
